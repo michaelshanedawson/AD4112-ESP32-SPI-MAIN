@@ -11,3 +11,4 @@ The device is interfaced via SPI, Mode 3, MSB first. The registers are typically
 
 ### Changelog ###
 * v0.01 1/26/2024 - Initial code creation. Can query and serial print the chip ID. Had the reverse the byte order on the SPI RX data, not sure why at the moment.
+* v0.02 1/28/2024 - Added ADC configurations. Need to update and make easier to follow but so far seems functional. The ADC data output is not accurate or even close, need to evaluate and solve. Could be a configuration issue.

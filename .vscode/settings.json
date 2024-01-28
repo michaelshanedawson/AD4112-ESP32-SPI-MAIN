@@ -6,7 +6,8 @@
   ],
   "idf.portWin": "COM11",
   "files.associations": {
-    "spi_master.h": "c"
+    "spi_master.h": "c",
+    "freertos.h": "c"
   },
   "idf.flashType": "UART"
 }
