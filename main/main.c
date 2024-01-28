@@ -45,28 +45,28 @@ uint32_t spi_read(spi_device_handle_t spi, uint8_t reg)
     * All register access starts with a write to the COMMs register to determine what register is being accessed next and if
     * the operation is a write or a read of that register.
     */    
-    uint8_t operationByte = 0 << 7 | 1 << 6 | reg;
+    uint8_t operationByte = 0x00 | 1 << 6 | reg; //Since this is a read function, default to a read operation each time
 
     spi_device_acquire_bus(spi, portMAX_DELAY);
     esp_err_t ret;
     spi_transaction_t t;     
     
-    memset(&t, 0, sizeof(t));       //Zero out the transaction
-    t.length=8;                     //Data Length in bits
-    t.tx_buffer=&operationByte;               //The data is the calculated delta phase
-    t.user=(void*)0;                //D/C needs to be set to 0
-    t.flags = SPI_TRANS_CS_KEEP_ACTIVE;   //Keep CS active after data transfer
-    ret=spi_device_polling_transmit(spi, &t);  //Transmit!
-    assert(ret==ESP_OK);            //Should have had no issues.    
+    memset(&t, 0, sizeof(t));                   //Zero out the transaction
+    t.length=8;                                 //Data Length in bits
+    t.tx_buffer=&operationByte;                 //The data is the command to the COMMs register
+    t.user=(void*)0;                            //D/C needs to be set to 0
+    t.flags = SPI_TRANS_CS_KEEP_ACTIVE;         //Keep CS active after data transfer
+    ret=spi_device_polling_transmit(spi, &t);   //Transmit!
+    assert(ret==ESP_OK);                        //Should have had no issues.    
 
-    memset(&t, 0, sizeof(t));       //Zero out the transaction
-    t.length=32;                     //Data size is 32 bits
+    memset(&t, 0, sizeof(t));                   //Zero out the transaction
+    t.length=32;                                //Data size is 32 bits
     t.flags = SPI_TRANS_USE_RXDATA;
     t.user = (void*)1;
     ret = spi_device_polling_transmit(spi, &t);
     assert( ret == ESP_OK );    
-    spi_device_release_bus(spi); // Release bus
-    return *(int32_t*)t.rx_data; //Performs the return of the requested register data
+    spi_device_release_bus(spi);                // Release bus
+    return *(int32_t*)t.rx_data;                //Performs the return of the requested register data
 
 }
 
@@ -113,7 +113,7 @@ void app_main(void)
 
     /* Here we will perform a basic test to see if we can get the ID of the chip*/ 
     int32_t registerData = spi_read(spi, 0x7);
-    registerData = SPI_SWAP_DATA_RX(registerData, 32);
-    printf("The Chip ID is: %#lx \n", registerData);
+    registerData = SPI_SWAP_DATA_RX(registerData, 32); //I have no idea why this is necessary at the moment
+    printf("The Chip ID is: %#lx \n", registerData); //The datasheet shows the ID for the AD4112 should be 0x30DX where X is not important and can be anything
     }
 
