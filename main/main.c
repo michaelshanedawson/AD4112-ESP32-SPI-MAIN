@@ -13,6 +13,9 @@
 * a single byte in length.
 * All information can be found in the product datasheet, located here : https://www.analog.com/en/products/ad4112.html#product-documentation
 *
+* The code was written around the Evaluation kit from Analog Devices. The user guide cna be found here: 
+* https://www.analog.com/en/design-center/evaluation-hardware-and-software/evaluation-boards-kits/EVAL-AD4111.html#eb-documentation
+*
 * This particular ADC unit requires a lot of configuration and it features many options. This code example will follow the recommended flow in the datasheet.
 *
 * Step A:
@@ -118,6 +121,7 @@ enum filter_configuration_selection
 /*Declare function prototypes*/
 void spi_write(spi_device_handle_t spi, uint8_t reg, uint32_t value);
 uint32_t spi_read(spi_device_handle_t spi, uint8_t reg);
+void device_reset(spi_device_handle_t spi);
 
 /*GPIO Pulse*/
 void pulse(uint8_t pin)
@@ -187,6 +191,30 @@ void spi_write(spi_device_handle_t spi, uint8_t reg, uint32_t value)
     spi_device_release_bus(spi);                // Release bus    
 }
 
+void device_reset(spi_device_handle_t spi)
+{
+    spi_device_acquire_bus(spi, portMAX_DELAY);
+    esp_err_t ret;
+    spi_transaction_t t;
+    uint32_t value = 0xFFFFFFFF;
+
+    memset(&t, 0, sizeof(t));                    //Zero out the transaction
+    t.length=32;                                 //Data Length in bits
+    t.tx_buffer=&value;                         //The data is the value to write to the selected register
+    t.user=(void*)0;                            //D/C needs to be set to 0
+    t.flags = SPI_TRANS_CS_KEEP_ACTIVE;         //Keep CS active after data transfer
+    ret=spi_device_polling_transmit(spi, &t);   //Transmit!
+    assert(ret==ESP_OK);                        //Should have had no issues.
+
+    memset(&t, 0, sizeof(t));                    //Zero out the transaction
+    t.length=32;                                 //Data Length in bits
+    t.tx_buffer=&value;                         //The data is the value to write to the selected register
+    t.user=(void*)0;                            //D/C needs to be set to 0   
+    ret=spi_device_polling_transmit(spi, &t);   //Transmit!
+    assert(ret==ESP_OK);                        //Should have had no issues.   
+    spi_device_release_bus(spi);                // Release bus        
+}
+
 void app_main(void)
 {
     /*Configure GPIO pins*/
@@ -231,6 +259,11 @@ void app_main(void)
     ret=spi_bus_add_device(SPI_HOST, &devcfg, &spi);
     ESP_ERROR_CHECK(ret);
 
+    /*Send a device reset to the AD4112 unit*/
+    vTaskDelay(100 / portTICK_PERIOD_MS);  //Delay the task for x number of milliseconds. 1000mS = 1 second.
+    device_reset(spi);
+    vTaskDelay(100 / portTICK_PERIOD_MS);  //Delay the task for x number of milliseconds. 1000mS = 1 second.
+
     /* Here we will perform a basic test to see if we can get the ID of the chip*/ 
     int32_t registerData = spi_read(spi, 0x7);
     registerData = SPI_SWAP_DATA_RX(registerData, 32); //I have no idea why this is necessary at the moment
@@ -243,8 +276,9 @@ void app_main(void)
     */ 
 
     uint32_t dataOut = 0x00; //A simple local variable to configure all SPI data write transactions
-    dataOut = 1 << 15 | (setup = SETUP0) << 12 | (singleInput = INPUT0); // bit position 15 is 1 to enable the channel. 
-    spi_write(spi, channel=CH0, dataOut);
+
+    dataOut = 1 << 15 | (setup = SETUP0) << 12 | (singleInput = INPUT1); // bit position 15 is 1 to enable the channel. 
+    spi_write(spi, channel=CH0, dataOut);    
 
     /* Here we will configure the ADC setups. There are eight independent setups that can be used. Each setup contains the following four registers:
     *  Setup Configuration Register, Filter Configuration Register, Gain Register and Offset Register. The registers are all configured as a group. 
@@ -252,21 +286,21 @@ void app_main(void)
     */
 
     /* First we will configure the Setup Configuration for #0*/
-    dataOut = 0x00 | 0b11 << 8 | 0b11 << 4;
+    dataOut = 0x00 | 0b11 << 8;
     spi_write(spi, setupConf = SETUPCON0, dataOut);
 
     /* Now we will configure the Filter for #0. The filter is more complicated and some things depend on how many channels are active. Refer to datasheet for more info.*/
-    dataOut = 0x00 | 1 << 11 | 0b010 << 8;
+    dataOut = 0x00 | 1 << 11 | 0b010 << 8 | 0b01000;
     spi_write(spi, filterConf = FILTERCON0, dataOut);
 
     /* The Offset and Gain registers are used to compensate for errors in the ADC. We will not configure them at this stage, need to know how it performs first*/
 
     /* Here we will configure the ADC Mode register*/
-    dataOut = 0x00;
+    dataOut = 0x00 | 0b11 << 2;
     spi_write(spi, 0x1, dataOut); //0x1 is the address of the ADC mode register
 
     /* Here we will configure the ADC Interface register*/
-    dataOut = 0x00; //Bit position 6 allows us to append channel and status information to the data that is transmitted
+    dataOut = 0x00; 
     spi_write(spi, 0x2, dataOut); //0x2 is the address of the ADC mode register
 
 
@@ -279,8 +313,10 @@ void app_main(void)
         uint8_t dataReady = 0x00;
         uint8_t channelReady = 0x00;
         registerData = spi_read(spi, 0x0);
+        //printf("The register data is: %#lx \n", registerData);
         registerData = (registerData & 0xFF);
         dataReady = (registerData & 0x80);
+        //printf("The data ready bit is: %#x \n", dataReady);
         channelReady = (registerData & 0xF);
         //printf("The register data is: %#lx \n", registerData);
         //printf("Data status = %u \n", dataReady);
@@ -290,6 +326,7 @@ void app_main(void)
         {
             int32_t adcData = 0x00;
             adcData = spi_read(spi, 0x4);
+            //printf("The ADC data is: %#lx \n", (adcData & 0xFFFFFF)); 
             printf("ADC Data = %.4f \n", (double)(adcData & 0xFFFFFF));            
         }
         vTaskDelay(500 / portTICK_PERIOD_MS);  //Delay the task for x number of milliseconds. 1000mS = 1 second.

@@ -1,5 +1,9 @@
 ## AD4112-ESP32-SPI-MAIN ##
-Driver and interface code for the Analog Devices AD411x 24-bit ADC unit. This code was written in VS Code using the ESP IDF. The target unit is the ESP32-C3 MINI. This code was written around the AD4112 unit but should work with the other models in the same series with a few adjustments as necessary.
+Driver and interface code for the Analog Devices AD411x 24-bit ADC unit. This code was written in VS Code using the ESP IDF. The target unit is the ESP32-C3 MINI. This code was written around the AD4112 unit but should work with the other models in the same series with a few adjustments as necessary. All information can be found in the product datasheet, located here : 
+* https://www.analog.com/en/products/ad4112.html#product-documentation. 
+
+The code was written around the Evaluation kit from Analog Devices. The user guide can be found here: 
+* https://www.analog.com/en/design-center/evaluation-hardware-and-software/evaluation-boards-kits/EVAL-AD4111.html#eb-documentation
 
 ### Credits ###
 Michael Dawson 

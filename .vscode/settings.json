@@ -7,7 +7,18 @@
   "idf.portWin": "COM11",
   "files.associations": {
     "spi_master.h": "c",
-    "freertos.h": "c"
+    "freertos.h": "c",
+    "algorithm": "c",
+    "chrono": "c",
+    "complex": "c",
+    "functional": "c",
+    "optional": "c",
+    "regex": "c",
+    "system_error": "c",
+    "type_traits": "c",
+    "xlocmon": "c",
+    "xtr1common": "c",
+    "xutility": "c"
   },
   "idf.flashType": "UART"
 }
